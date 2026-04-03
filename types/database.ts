@@ -30,7 +30,10 @@ export type NotificationType =
   | "booking_accepted"
   | "booking_declined";
 
-export interface Database {
+// Matches the format expected by @supabase/supabase-js v2 TypeScript inference.
+// Each table requires a Relationships array; Views/Functions/Enums/CompositeTypes
+// use the mapped-type form `{ [_ in never]: never }` (not Record<string, never>).
+export type Database = {
   public: {
     Tables: {
       users: {
@@ -60,6 +63,7 @@ export interface Database {
           avatar_url?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       listings: {
         Row: {
@@ -127,6 +131,15 @@ export interface Database {
           is_featured?: boolean;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "listings_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       listing_photos: {
         Row: {
@@ -152,6 +165,15 @@ export interface Database {
           url?: string;
           sort_order?: number;
         };
+        Relationships: [
+          {
+            foreignKeyName: "listing_photos_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       listing_vehicles: {
         Row: {
@@ -169,6 +191,15 @@ export interface Database {
           listing_id?: string;
           vehicle?: VehicleType;
         };
+        Relationships: [
+          {
+            foreignKeyName: "listing_vehicles_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       listing_features: {
         Row: {
@@ -186,6 +217,15 @@ export interface Database {
           listing_id?: string;
           feature?: FeatureType;
         };
+        Relationships: [
+          {
+            foreignKeyName: "listing_features_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       booking_requests: {
         Row: {
@@ -220,6 +260,29 @@ export interface Database {
           message?: string | null;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "booking_requests_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "booking_requests_buyer_id_fkey";
+            columns: ["buyer_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "booking_requests_seller_id_fkey";
+            columns: ["seller_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       notifications: {
         Row: {
@@ -245,10 +308,42 @@ export interface Database {
           booking_id?: string | null;
           is_read?: boolean;
         };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_booking_id_fkey";
+            columns: ["booking_id"];
+            isOneToOne: false;
+            referencedRelation: "booking_requests";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      get_listing_owner_public: {
+        Args: { p_owner_id: string };
+        Returns: {
+          id: string;
+          full_name: string;
+          avatar_url: string | null;
+        }[];
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
-}
+};
