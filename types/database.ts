@@ -338,6 +338,53 @@ export type Database = {
           avatar_url: string | null;
         }[];
       };
+      search_listings: {
+        Args: {
+          p_search?: string;
+          p_space_types?: string[] | null;
+          p_vehicles?: string[] | null;
+          p_features?: string[] | null;
+          p_min_price?: number | null;
+          p_max_price?: number | null;
+          p_search_lat?: number | null;
+          p_search_lng?: number | null;
+          p_radius_metres?: number | null;
+          p_ne_lat?: number | null;
+          p_ne_lng?: number | null;
+          p_sw_lat?: number | null;
+          p_sw_lng?: number | null;
+          p_sort?: string;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: {
+          id: string;
+          owner_id: string;
+          title: string;
+          description: string | null;
+          address: string;
+          suburb: string;
+          state: string;
+          postcode: string;
+          lat: number;
+          lng: number;
+          space_type: SpaceType;
+          price_daily: number | null;
+          price_fortnightly: number | null;
+          price_monthly: number | null;
+          access_instructions: string | null;
+          is_sold_out: boolean;
+          is_active: boolean;
+          is_featured: boolean;
+          created_at: string;
+          updated_at: string;
+          distance_metres: number | null;
+          cover_photo: { url: string; sort_order: number } | null;
+          listing_vehicles: { vehicle: VehicleType }[];
+          listing_features: { feature: FeatureType }[];
+          total_count: number;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

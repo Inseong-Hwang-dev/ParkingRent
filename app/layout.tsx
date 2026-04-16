@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { GoogleMapsProvider } from "@/components/providers/google-maps-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -31,7 +32,9 @@ export default function RootLayout({
   return (
     <html lang="en-AU" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {children}
+        <GoogleMapsProvider>
+          {children}
+        </GoogleMapsProvider>
         <Toaster />
       </body>
     </html>

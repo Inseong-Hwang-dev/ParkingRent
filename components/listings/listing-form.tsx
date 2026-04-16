@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { APIProvider } from '@vis.gl/react-google-maps'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react'
 import { createListing } from '@/app/(dashboard)/listings/new/actions'
@@ -704,13 +703,9 @@ export function ListingForm() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
+  // APIProvider is supplied by the app-wide GoogleMapsProvider in the root layout.
   return (
-    <APIProvider
-      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
-      language="en"
-      region="AU"
-    >
-      <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">List Your Space</h1>
@@ -770,6 +765,5 @@ export function ListingForm() {
           )}
         </div>
       </div>
-    </APIProvider>
   )
 }

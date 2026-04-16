@@ -21,7 +21,16 @@ const supabasePattern = supabaseStorageRemotePattern();
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: supabasePattern ? [supabasePattern] : [],
+    remotePatterns: [
+      // Supabase Storage (listing photos)
+      ...(supabasePattern ? [supabasePattern] : []),
+      // Google OAuth avatars (lh3.googleusercontent.com)
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+    ],
   },
 };
 

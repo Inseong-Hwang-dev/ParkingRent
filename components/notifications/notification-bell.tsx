@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -45,7 +45,8 @@ function formatRelativeTime(iso: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
-  const supabase = createClient()
+  const supabase = useRef(createClient()).current
+  const instanceId = useId().replace(/[:]/g, '')
   const [userId, setUserId] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
@@ -66,29 +67,31 @@ export function NotificationBell() {
   useEffect(() => {
     if (!userId) return
 
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const incoming = payload.new as Notification
-          setNotifications((prev) => [incoming, ...prev].slice(0, 15))
-        }
-      )
-      .subscribe()
+    const channel = supabase.channel(`notifications:${userId}:${instanceId}`)
+
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        const incoming = payload.new as Notification
+        setNotifications((prev) => [incoming, ...prev].slice(0, 15))
+      }
+    )
+
+    channel.subscribe()
 
     channelRef.current = channel
 
     return () => {
       supabase.removeChannel(channel)
+      channelRef.current = null
     }
-  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, instanceId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 3. Mark unread as read when dropdown opens
   useEffect(() => {

@@ -108,8 +108,8 @@ export default async function BookingDetailPage({
     avatar_url: string | null
   }
 
-  const buyer = booking.buyer as BookingUser
-  const seller = booking.seller as BookingUser
+  const buyer = (booking.buyer ?? null) as BookingUser | null
+  const seller = (booking.seller ?? null) as BookingUser | null
   const listing = booking.listing as {
     id: string
     title: string
@@ -283,21 +283,32 @@ function PartyCard({
   label,
   showContact,
 }: {
-  user: BookingUser
+  user: BookingUser | null
   label: string
   showContact: boolean
 }) {
+  if (!user) {
+    return (
+      <Card>
+        <CardContent className="pt-4">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-sm text-muted-foreground mt-1">User not found.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardContent className="pt-4 space-y-3">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={user.avatar_url ?? undefined} alt={user.full_name} />
-            <AvatarFallback>{initials(user.full_name)}</AvatarFallback>
+            <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.full_name} />
+            <AvatarFallback>{initials(user?.full_name ?? '')}</AvatarFallback>
           </Avatar>
           <div>
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="font-medium text-sm">{user.full_name}</p>
+            <p className="font-medium text-sm">{user?.full_name}</p>
           </div>
         </div>
 
