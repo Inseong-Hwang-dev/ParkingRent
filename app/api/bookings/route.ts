@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { sendEmail, APP_URL } from '@/lib/email/resend'
+import { BookingRequestEmail } from '@/lib/email/templates/booking-request'
+import { createElement } from 'react'
 import type { PricingType, Database } from '@/types/database'
 
 function getServiceClient() {
@@ -42,10 +45,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid pricing_type' }, { status: 400 })
   }
 
-  // Fetch listing to get owner and validate it exists and is active
+  // Fetch listing (include title for email)
   const { data: listing } = await supabase
     .from('listings')
-    .select('id, owner_id, is_active, is_sold_out, price_daily, price_fortnightly, price_monthly')
+    .select('id, owner_id, title, is_active, is_sold_out, price_daily, price_fortnightly, price_monthly')
     .eq('id', listing_id)
     .single()
 
@@ -108,13 +111,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: bookingError.message }, { status: 500 })
   }
 
-  // Insert notification for seller via service role (bypasses RLS insert restriction)
+  // Insert notification for seller + send email (non-blocking; failures don't affect response)
   const serviceClient = getServiceClient()
-  await serviceClient.from('notifications').insert({
-    user_id: listing.owner_id,
-    type: 'booking_request',
-    booking_id: booking.id,
-  })
+
+  serviceClient
+    .from('notifications')
+    .insert({
+      user_id: listing.owner_id,
+      type: 'booking_request',
+      booking_id: booking.id,
+    })
+    .then(({ error }) => {
+      if (error) console.error('[bookings POST] Notification insert error:', error.message)
+    })
+
+  Promise.all([
+    serviceClient
+      .from('users')
+      .select('email, full_name')
+      .eq('id', listing.owner_id)
+      .single(),
+    serviceClient
+      .from('users')
+      .select('full_name')
+      .eq('id', user.id)
+      .single(),
+  ])
+    .then(([{ data: seller }, { data: buyer }]) => {
+      if (!seller || !buyer) return
+      return sendEmail({
+        to: seller.email,
+        subject: `New booking request for ${listing.title}`,
+        react: createElement(BookingRequestEmail, {
+          buyerName: buyer.full_name,
+          listingTitle: listing.title,
+          pricingType: pricing_type,
+          message: message ?? null,
+          bookingUrl: `${APP_URL}/bookings/${booking.id}`,
+        }),
+      })
+    })
+    .catch((err) => console.error('[bookings POST] Email error:', err))
 
   return NextResponse.json({ booking }, { status: 201 })
 }

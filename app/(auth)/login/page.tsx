@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -41,15 +41,17 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginPage() {
+function AuthErrorToast() {
   const searchParams = useSearchParams();
-
   useEffect(() => {
     if (searchParams.get("error") === "auth_callback_failed") {
       toast.error("Sign-in failed. Please try again.");
     }
   }, [searchParams]);
+  return null;
+}
 
+export default function LoginPage() {
   async function handleEmailSignIn(formData: FormData) {
     const result = await signInWithEmail(formData);
     if (result?.error) {
@@ -66,6 +68,10 @@ export default function LoginPage() {
 
   return (
     <Card>
+      <Suspense>
+        <AuthErrorToast />
+      </Suspense>
+
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl">Sign in</CardTitle>
         <CardDescription>

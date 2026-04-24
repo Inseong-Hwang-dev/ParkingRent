@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { sendEmail, APP_URL } from '@/lib/email/resend'
+import { BookingAcceptedEmail } from '@/lib/email/templates/booking-accepted'
+import { BookingDeclinedEmail } from '@/lib/email/templates/booking-declined'
+import { createElement } from 'react'
 import type { BookingStatus, Database } from '@/types/database'
 
 function getServiceClient() {
@@ -93,24 +97,66 @@ export async function PATCH(
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
-  // On accepted: notify the buyer via service role
+  const serviceClient = getServiceClient()
+
   if (newStatus === 'accepted') {
-    const serviceClient = getServiceClient()
-    await serviceClient.from('notifications').insert({
-      user_id: booking.buyer_id,
-      type: 'booking_accepted',
-      booking_id: bookingId,
-    })
+    // In-app notification
+    serviceClient
+      .from('notifications')
+      .insert({ user_id: booking.buyer_id, type: 'booking_accepted', booking_id: bookingId })
+      .then(({ error }) => {
+        if (error) console.error('[bookings PATCH] Notification insert error:', error.message)
+      })
+
+    // Email: fetch buyer, listing, and seller contact info
+    Promise.all([
+      serviceClient.from('users').select('email, full_name').eq('id', booking.buyer_id).single(),
+      serviceClient.from('listings').select('title').eq('id', booking.listing_id).single(),
+      serviceClient.from('users').select('full_name, email, phone').eq('id', booking.seller_id).single(),
+    ])
+      .then(([{ data: buyer }, { data: listing }, { data: seller }]) => {
+        if (!buyer || !listing || !seller) return
+        return sendEmail({
+          to: buyer.email,
+          subject: `Your booking request was accepted!`,
+          react: createElement(BookingAcceptedEmail, {
+            listingTitle: listing.title,
+            sellerName: seller.full_name,
+            sellerEmail: seller.email,
+            sellerPhone: seller.phone,
+            bookingUrl: `${APP_URL}/bookings/${bookingId}`,
+          }),
+        })
+      })
+      .catch((err) => console.error('[bookings PATCH] Accepted email error:', err))
   }
 
-  // On declined: notify the buyer via service role
   if (newStatus === 'declined') {
-    const serviceClient = getServiceClient()
-    await serviceClient.from('notifications').insert({
-      user_id: booking.buyer_id,
-      type: 'booking_declined',
-      booking_id: bookingId,
-    })
+    // In-app notification
+    serviceClient
+      .from('notifications')
+      .insert({ user_id: booking.buyer_id, type: 'booking_declined', booking_id: bookingId })
+      .then(({ error }) => {
+        if (error) console.error('[bookings PATCH] Notification insert error:', error.message)
+      })
+
+    // Email: fetch buyer and listing title
+    Promise.all([
+      serviceClient.from('users').select('email').eq('id', booking.buyer_id).single(),
+      serviceClient.from('listings').select('title').eq('id', booking.listing_id).single(),
+    ])
+      .then(([{ data: buyer }, { data: listing }]) => {
+        if (!buyer || !listing) return
+        return sendEmail({
+          to: buyer.email,
+          subject: `Update on your booking request`,
+          react: createElement(BookingDeclinedEmail, {
+            listingTitle: listing.title,
+            listingsUrl: `${APP_URL}/listings`,
+          }),
+        })
+      })
+      .catch((err) => console.error('[bookings PATCH] Declined email error:', err))
   }
 
   return NextResponse.json({ booking: updated })

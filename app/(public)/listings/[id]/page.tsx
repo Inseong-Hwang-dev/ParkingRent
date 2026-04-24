@@ -1,13 +1,15 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { BookingRequestForm } from '@/components/bookings/booking-request-form'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Lock, MapPin } from 'lucide-react'
+import { Lock, MapPin, Pencil } from 'lucide-react'
 import type { SpaceType, VehicleType, FeatureType, PricingType } from '@/types/database'
 
 // ─── Label maps ───────────────────────────────────────────────────────────────
@@ -49,15 +51,31 @@ export async function generateMetadata({
   const supabase = await createClient()
   const { data } = await supabase
     .from('listings')
-    .select('title, suburb, state, description')
+    .select('title, suburb, state, description, listing_photos(url, sort_order)')
     .eq('id', id)
     .single()
 
   if (!data) return {}
 
+  const fallbackDesc = `Parking space in ${data.suburb}, ${data.state}.`
+  const rawDesc = data.description ?? fallbackDesc
+  const description = rawDesc.length > 160 ? rawDesc.slice(0, 157) + '…' : rawDesc
+
+  const photos = [...(data.listing_photos ?? [])].sort(
+    (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+  )
+  const ogImage = photos[0]?.url ?? null
+
+  const title = `${data.title} – ${data.suburb}, ${data.state} | ParkSpace`
+
   return {
-    title: data.title,
-    description: data.description ?? `Parking space in ${data.suburb}, ${data.state}.`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+    },
   }
 }
 
@@ -133,6 +151,14 @@ export default async function ListingDetailPage({
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <Badge variant="secondary">{SPACE_TYPE_LABELS[listing.space_type]}</Badge>
               {listing.is_sold_out && <Badge variant="destructive">Sold Out</Badge>}
+              {isOwner && (
+                <Button asChild size="sm" variant="outline" className="ml-auto gap-1.5">
+                  <Link href={`/listings/${listing.id}/edit`}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit Listing
+                  </Link>
+                </Button>
+              )}
             </div>
             <h1 className="text-2xl font-bold leading-tight">{listing.title}</h1>
             <p className="flex items-center gap-1 text-sm text-muted-foreground mt-1">

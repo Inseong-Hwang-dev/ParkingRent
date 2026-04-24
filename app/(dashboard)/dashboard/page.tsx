@@ -1,8 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Plus, Car, BookOpen, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import type { BookingStatus, PricingType } from "@/types/database";
+import type { BookingStatus, PricingType, SpaceType } from "@/types/database";
 
 // Explicit type for the relational query result
 type RecentBooking = {
@@ -13,6 +14,20 @@ type RecentBooking = {
   listing: { title: string } | null;
   buyer: { full_name: string } | null;
 };
+
+type MyListing = {
+  id: string;
+  title: string;
+  suburb: string;
+  state: string;
+  space_type: SpaceType;
+  is_active: boolean;
+  is_sold_out: boolean;
+  price_daily: number | null;
+  price_monthly: number | null;
+  listing_photos: { url: string; sort_order: number }[];
+};
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,12 +78,13 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  // Parallel queries for all counts + recent bookings
+  // Parallel queries for all counts + recent bookings + my listings
   const [
     { count: activeListings },
     { count: pendingReceived },
     { count: sentRequests },
     { data: recentReceived },
+    { data: myListings },
   ] = await Promise.all([
     supabase
       .from("listings")
@@ -102,6 +118,27 @@ export default async function DashboardPage() {
       .eq("seller_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5) as unknown as Promise<{ data: RecentBooking[] | null }>,
+
+    supabase
+      .from("listings")
+      .select(
+        `
+        id,
+        title,
+        suburb,
+        state,
+        space_type,
+        is_active,
+        is_sold_out,
+        price_daily,
+        price_monthly,
+        listing_photos ( url, sort_order )
+      `
+      )
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: false }) as unknown as Promise<{
+      data: MyListing[] | null;
+    }>,
   ]);
 
   const stats = [
@@ -109,7 +146,7 @@ export default async function DashboardPage() {
       label: "Active Listings",
       value: activeListings ?? 0,
       icon: Car,
-      href: "/dashboard/listings",
+      href: "/dashboard",
     },
     {
       label: "Pending Requests",
@@ -171,6 +208,114 @@ export default async function DashboardPage() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      {/* My Listings */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">My Listings</h2>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/listings/new" className="gap-1.5 flex items-center">
+              <Plus className="h-4 w-4" />
+              New Listing
+            </Link>
+          </Button>
+        </div>
+
+        {!myListings || myListings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <Car className="mx-auto h-8 w-8 mb-3 opacity-40" />
+              <p className="font-medium">No listings yet</p>
+              <p className="text-sm mt-1">
+                <Link
+                  href="/listings/new"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  List your first space
+                </Link>{" "}
+                to get started.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {myListings.map((listing) => {
+              const coverPhoto = [...listing.listing_photos].sort(
+                (a, b) => a.sort_order - b.sort_order
+              )[0];
+              const price = listing.price_monthly ?? listing.price_daily;
+              const priceLabel = listing.price_monthly
+                ? "/mo"
+                : listing.price_daily
+                ? "/day"
+                : null;
+
+              return (
+                <Card key={listing.id} className="overflow-hidden">
+                  <div className="flex items-center gap-4 p-4">
+                    {/* Thumbnail */}
+                    <div className="relative h-16 w-24 shrink-0 rounded-md overflow-hidden bg-muted">
+                      {coverPhoto ? (
+                        <Image
+                          src={coverPhoto.url}
+                          alt={listing.title}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Car className="h-6 w-6 text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{listing.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {listing.suburb}, {listing.state}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {!listing.is_active && (
+                          <Badge variant="outline" className="text-xs">
+                            Inactive
+                          </Badge>
+                        )}
+                        {listing.is_sold_out && (
+                          <Badge variant="destructive" className="text-xs">
+                            Sold Out
+                          </Badge>
+                        )}
+                        {price !== null && priceLabel && (
+                          <span className="text-xs text-muted-foreground">
+                            $
+                            {price.toLocaleString("en-AU", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
+                            })}
+                            {priceLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/listings/${listing.id}`}>View</Link>
+                      </Button>
+                      <Button size="sm" asChild>
+                        <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recent received booking requests */}

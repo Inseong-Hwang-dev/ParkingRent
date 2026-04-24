@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
         hostname: "lh3.googleusercontent.com",
         pathname: "/**",
       },
+      // Resend email asset CDN
+      {
+        protocol: "https",
+        hostname: "*.resend.com",
+        pathname: "/**",
+      },
     ],
   },
 };

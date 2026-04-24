@@ -4,6 +4,19 @@ import { createClient } from '@/lib/supabase/server'
 import { ListingCard } from '@/components/listings/listing-card'
 import { Button } from '@/components/ui/button'
 import { ListingsSearchBar } from '@/components/listings/listings-search-bar'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'ParkSpace – Find & List Parking Spaces in Australia',
+  description:
+    'Australia\'s free peer-to-peer parking marketplace. Find affordable parking near you or earn income from your unused space — no fees, no fuss.',
+  openGraph: {
+    title: 'ParkSpace – Find & List Parking Spaces in Australia',
+    description:
+      'Australia\'s free peer-to-peer parking marketplace. Find affordable parking near you or earn income from your unused space — no fees, no fuss.',
+    images: [{ url: '/og-image.png' }],
+  },
+}
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -28,24 +41,33 @@ export default async function HomePage() {
   return (
     <div>
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-b from-primary/5 to-background py-16 sm:py-24 px-4">
-        <div className="mx-auto max-w-3xl text-center space-y-6">
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-            Find Your Perfect Parking Space
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/70 py-20 sm:py-32 px-4">
+        {/* Decorative blobs */}
+        <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-3xl text-center space-y-6">
+          <p className="text-sm font-semibold uppercase tracking-widest text-primary-foreground/70">
+            Australia&apos;s free peer-to-peer parking marketplace
+          </p>
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-primary-foreground leading-tight">
+            Find &amp; List Parking Spaces Near You
           </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Australia&apos;s free peer-to-peer parking marketplace. Find
-            affordable parking or earn income from your unused space — no fees,
-            no fuss.
+          <p className="text-lg text-primary-foreground/80 max-w-xl mx-auto">
+            Connect with local owners to find affordable parking, or earn extra
+            income from your unused space — no fees, no fuss.
           </p>
 
-          <div className="max-w-md mx-auto">
+          <div className="mx-auto max-w-lg">
             <ListingsSearchBar currentParams={{}} />
           </div>
 
-          <div className="flex gap-3 justify-center">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/listings/new">List Your Space</Link>
+          <div className="flex gap-3 justify-center pt-2">
+            <Button variant="secondary" size="sm" asChild>
+              <Link href="/listings/new">List Your Space — It&apos;s Free</Link>
+            </Button>
+            <Button variant="outline" size="sm" className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10" asChild>
+              <Link href="/how-it-works">How It Works</Link>
             </Button>
           </div>
         </div>
@@ -81,12 +103,15 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Recent listings ────────────────────────────────────────────────── */}
+      {/* ── Featured listings ──────────────────────────────────────────────── */}
       {listings.length > 0 && (
         <section className="py-16 px-4">
           <div className="mx-auto max-w-7xl">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold">Recently Listed</h2>
+              <div>
+                <h2 className="text-2xl font-bold">Recently Listed</h2>
+                <p className="text-sm text-muted-foreground mt-1">Fresh spaces added by owners near you</p>
+              </div>
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/listings">View all →</Link>
               </Button>

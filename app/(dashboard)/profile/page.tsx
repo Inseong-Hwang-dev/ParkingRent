@@ -21,6 +21,9 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .single();
 
+  const isOAuthUser =
+    (user.app_metadata?.provider as string | undefined) === "google";
+
   const initialData = {
     full_name:
       profile?.full_name ||
@@ -42,7 +45,7 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      <ProfileForm initialData={initialData} />
+      <ProfileForm initialData={initialData} isOAuthUser={isOAuthUser} />
     </div>
   );
 }
