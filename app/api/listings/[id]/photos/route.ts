@@ -95,6 +95,61 @@ export async function POST(
   return NextResponse.json({ photo })
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+  }
+
+  const { id: listingId } = await params
+
+  const { data: listing } = await supabase
+    .from('listings')
+    .select('owner_id')
+    .eq('id', listingId)
+    .single()
+
+  if (!listing || listing.owner_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  let photos: { id: string; sort_order: number }[]
+  try {
+    const body = await req.json()
+    photos = body.photos
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  if (!Array.isArray(photos)) {
+    return NextResponse.json({ error: 'Invalid photos array' }, { status: 400 })
+  }
+
+  const results = await Promise.all(
+    photos.map(({ id, sort_order }) =>
+      supabase
+        .from('listing_photos')
+        .update({ sort_order })
+        .eq('id', id)
+        .eq('listing_id', listingId)
+    )
+  )
+
+  const failed = results.find((r) => r.error)
+  if (failed?.error) {
+    return NextResponse.json({ error: failed.error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

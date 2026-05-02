@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { GoogleMapsProvider } from "@/components/providers/google-maps-provider";
 
 export default async function DashboardLayout({
   children,
@@ -34,5 +35,9 @@ export default async function DashboardLayout({
     email: profile?.email || authUser.email || "",
   };
 
-  return <DashboardShell user={user}>{children}</DashboardShell>;
+  return (
+    <GoogleMapsProvider>
+      <DashboardShell user={user}>{children}</DashboardShell>
+    </GoogleMapsProvider>
+  );
 }

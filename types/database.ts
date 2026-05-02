@@ -43,6 +43,7 @@ export type Database = {
           email: string;
           phone: string | null;
           avatar_url: string | null;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -52,6 +53,7 @@ export type Database = {
           email: string;
           phone?: string | null;
           avatar_url?: string | null;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -61,6 +63,7 @@ export type Database = {
           email?: string;
           phone?: string | null;
           avatar_url?: string | null;
+          is_admin?: boolean;
           updated_at?: string;
         };
         Relationships: [];
@@ -85,6 +88,7 @@ export type Database = {
           is_sold_out: boolean;
           is_active: boolean;
           is_featured: boolean;
+          slug: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -107,6 +111,7 @@ export type Database = {
           is_sold_out?: boolean;
           is_active?: boolean;
           is_featured?: boolean;
+          slug?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -129,6 +134,7 @@ export type Database = {
           is_sold_out?: boolean;
           is_active?: boolean;
           is_featured?: boolean;
+          slug?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -376,6 +382,7 @@ export type Database = {
           is_sold_out: boolean;
           is_active: boolean;
           is_featured: boolean;
+          slug: string | null;
           created_at: string;
           updated_at: string;
           distance_metres: number | null;

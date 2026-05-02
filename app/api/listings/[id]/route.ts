@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { SpaceType, VehicleType, FeatureType } from '@/types/database'
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+  const { id: idOrSlug } = await params
+
+  const base = supabase
+    .from('listings')
+    .select('*, listing_photos(id, url, sort_order), listing_vehicles(vehicle), listing_features(feature)')
+    .eq('is_active', true)
+
+  const { data, error } = UUID_REGEX.test(idOrSlug)
+    ? await base.eq('id', idOrSlug).single()
+    : await base.eq('slug', idOrSlug).single()
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
+  }
+
+  return NextResponse.json({ listing: data })
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -164,14 +189,27 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Clean up Storage files before deleting the listing
+  const { data: photos } = await supabase
+    .from('listing_photos')
+    .select('storage_path')
+    .eq('listing_id', listingId)
+
+  if (photos && photos.length > 0) {
+    await supabase.storage
+      .from('listing-photos')
+      .remove(photos.map((p) => p.storage_path))
+  }
+
+  // Delete listing — CASCADE removes listing_photos, listing_vehicles, listing_features
   const { error } = await supabase
     .from('listings')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .delete()
     .eq('id', listingId)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  return new NextResponse(null, { status: 204 })
 }

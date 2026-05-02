@@ -24,6 +24,7 @@ const VEHICLE_LABELS: Record<VehicleType, string> = {
 interface ListingCardProps {
   listing: {
     id: string
+    slug: string | null
     title: string
     suburb: string
     state: string
@@ -52,7 +53,7 @@ export function ListingCard({ listing }: ListingCardProps) {
   const price = cheapestPrice(listing.price_daily, listing.price_fortnightly, listing.price_monthly)
 
   return (
-    <Link href={`/listings/${listing.id}`} className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
+    <Link href={`/listings/${listing.slug ?? listing.id}`} className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
       <Card className="overflow-hidden transition-shadow group-hover:shadow-md h-full">
         {/* Photo */}
         <div className="relative aspect-[4/3] bg-muted">

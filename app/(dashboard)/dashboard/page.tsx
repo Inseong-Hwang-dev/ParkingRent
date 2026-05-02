@@ -3,6 +3,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Plus, Car, BookOpen, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ListingActions } from "@/components/listings/listing-actions";
 import type { BookingStatus, PricingType, SpaceType } from "@/types/database";
 
 // Explicit type for the relational query result
@@ -146,7 +147,7 @@ export default async function DashboardPage() {
       label: "Active Listings",
       value: activeListings ?? 0,
       icon: Car,
-      href: "/dashboard",
+      href: "/dashboard/listings",
     },
     {
       label: "Pending Requests",
@@ -250,6 +251,7 @@ export default async function DashboardPage() {
                 : listing.price_daily
                 ? "/day"
                 : null;
+              const isPaused = !listing.is_active;
 
               return (
                 <Card key={listing.id} className="overflow-hidden">
@@ -262,25 +264,30 @@ export default async function DashboardPage() {
                           alt={listing.title}
                           fill
                           sizes="96px"
-                          className="object-cover"
+                          className={`object-cover transition-opacity ${isPaused ? "opacity-40" : ""}`}
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center">
                           <Car className="h-6 w-6 text-muted-foreground/40" />
                         </div>
                       )}
+                      {isPaused && (
+                        <div className="absolute inset-0 bg-background/60" />
+                      )}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{listing.title}</p>
+                      <p className={`font-medium truncate ${isPaused ? "text-muted-foreground" : ""}`}>
+                        {listing.title}
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         {listing.suburb}, {listing.state}
                       </p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {!listing.is_active && (
-                          <Badge variant="outline" className="text-xs">
-                            Inactive
+                        {isPaused && (
+                          <Badge variant="secondary" className="text-xs">
+                            Paused
                           </Badge>
                         )}
                         {listing.is_sold_out && (
@@ -302,13 +309,14 @@ export default async function DashboardPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-col items-end gap-2 shrink-0 sm:flex-row sm:items-center">
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/listings/${listing.id}`}>View</Link>
-                      </Button>
-                      <Button size="sm" asChild>
                         <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
                       </Button>
+                      <ListingActions
+                        listingId={listing.id}
+                        isActive={listing.is_active}
+                      />
                     </div>
                   </div>
                 </Card>

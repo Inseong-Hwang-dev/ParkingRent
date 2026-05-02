@@ -82,7 +82,7 @@ export default async function BookingDetailPage({
     .from('booking_requests')
     .select(
       `*,
-       listing:listings ( id, title, suburb, state, space_type, is_sold_out ),
+       listing:listings ( id, slug, title, suburb, state, space_type, is_sold_out ),
        buyer:users!booking_requests_buyer_id_fkey ( id, full_name, email, phone, avatar_url ),
        seller:users!booking_requests_seller_id_fkey ( id, full_name, email, phone, avatar_url )`
     )
@@ -112,6 +112,7 @@ export default async function BookingDetailPage({
   const seller = (booking.seller ?? null) as BookingUser | null
   const listing = booking.listing as {
     id: string
+    slug: string | null
     title: string
     suburb: string
     state: string
@@ -159,7 +160,7 @@ export default async function BookingDetailPage({
               </div>
             </div>
             <Link
-              href={`/listings/${listing.id}`}
+              href={`/listings/${listing.slug ?? listing.id}`}
               className="flex items-center gap-1 text-sm text-primary hover:underline shrink-0"
             >
               View listing

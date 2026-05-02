@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Metadata } from 'next'
@@ -11,6 +11,12 @@ import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Lock, MapPin, Pencil } from 'lucide-react'
 import type { SpaceType, VehicleType, FeatureType, PricingType } from '@/types/database'
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://parkspace.com.au'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // ─── Label maps ───────────────────────────────────────────────────────────────
 
@@ -40,6 +46,24 @@ const FEATURE_LABELS: Record<FeatureType, string> = {
   security: 'Security Guard',
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function fetchListing(idOrSlug: string) {
+  const supabase = await createClient()
+  const base = supabase
+    .from('listings')
+    .select(
+      `*, listing_photos ( id, url, sort_order ), listing_vehicles ( vehicle ), listing_features ( feature )`
+    )
+    .eq('is_active', true)
+
+  const { data } = UUID_REGEX.test(idOrSlug)
+    ? await base.eq('id', idOrSlug).single()
+    : await base.eq('slug', idOrSlug).single()
+
+  return data
+}
+
 // ─── generateMetadata ─────────────────────────────────────────────────────────
 
 export async function generateMetadata({
@@ -47,13 +71,16 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
-  const { id } = await params
+  const { id: idOrSlug } = await params
   const supabase = await createClient()
-  const { data } = await supabase
+
+  const base = supabase
     .from('listings')
-    .select('title, suburb, state, description, listing_photos(url, sort_order)')
-    .eq('id', id)
-    .single()
+    .select('id, slug, title, suburb, state, description, listing_photos(url, sort_order)')
+
+  const { data } = UUID_REGEX.test(idOrSlug)
+    ? await base.eq('id', idOrSlug).single()
+    : await base.eq('slug', idOrSlug).single()
 
   if (!data) return {}
 
@@ -67,13 +94,18 @@ export async function generateMetadata({
   const ogImage = photos[0]?.url ?? null
 
   const title = `${data.title} – ${data.suburb}, ${data.state} | ParkSpace`
+  const canonicalSlug = data.slug ?? data.id
 
   return {
     title,
     description,
+    alternates: {
+      canonical: `${BASE_URL}/listings/${canonicalSlug}`,
+    },
     openGraph: {
       title,
       description,
+      url: `${BASE_URL}/listings/${canonicalSlug}`,
       ...(ogImage ? { images: [{ url: ogImage }] } : {}),
     },
   }
@@ -86,29 +118,31 @@ export default async function ListingDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id } = await params
+  const { id: idOrSlug } = await params
   const supabase = await createClient()
 
-  const [listingRes, sessionRes] = await Promise.all([
-    supabase
+  // If a raw UUID is passed and the listing has a slug, redirect permanently.
+  if (UUID_REGEX.test(idOrSlug)) {
+    const { data: check } = await supabase
       .from('listings')
-      .select(
-        `
-        *,
-        listing_photos ( id, url, sort_order ),
-        listing_vehicles ( vehicle ),
-        listing_features ( feature )
-        `
-      )
-      .eq('id', id)
+      .select('slug')
+      .eq('id', idOrSlug)
       .eq('is_active', true)
-      .single(),
+      .single()
+
+    if (check?.slug) {
+      permanentRedirect(`/listings/${check.slug}`)
+    }
+  }
+
+  const [listingData, sessionRes] = await Promise.all([
+    fetchListing(idOrSlug),
     supabase.auth.getUser(),
   ])
 
-  if (listingRes.error || !listingRes.data) notFound()
+  if (!listingData) notFound()
 
-  const listing = listingRes.data
+  const listing = listingData
 
   const { data: ownerRows } = await supabase.rpc('get_listing_owner_public', {
     p_owner_id: listing.owner_id,
@@ -140,6 +174,8 @@ export default async function ListingDetailPage({
     .join('')
     .toUpperCase()
     .slice(0, 2)
+
+  const listingUrl = listing.slug ?? listing.id
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
@@ -304,7 +340,7 @@ export default async function ListingDetailPage({
                     Sign in to request this parking space.
                   </p>
                   <a
-                    href={`/login?redirect=/listings/${listing.id}`}
+                    href={`/login?redirect=/listings/${listingUrl}`}
                     className="block w-full rounded-md bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     Sign in to book

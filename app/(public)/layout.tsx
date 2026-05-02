@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { PublicUserMenu } from '@/components/layout/PublicUserMenu'
+import { GoogleMapsProvider } from '@/components/providers/google-maps-provider'
 
 export default async function PublicLayout({
   children,
@@ -37,6 +38,7 @@ export default async function PublicLayout({
     : null
 
   return (
+    <GoogleMapsProvider>
     <div className="flex min-h-screen flex-col">
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
@@ -110,5 +112,6 @@ export default async function PublicLayout({
         </div>
       </footer>
     </div>
+    </GoogleMapsProvider>
   )
 }

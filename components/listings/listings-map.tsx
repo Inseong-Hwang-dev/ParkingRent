@@ -19,6 +19,7 @@ import type { SpaceType, VehicleType } from '@/types/database'
 
 export interface MapListing {
   id: string
+  slug: string | null
   title: string
   lat: number
   lng: number
@@ -263,7 +264,7 @@ function InfoCard({ listing }: { listing: MapListing }) {
   const price = cheapestPrice(listing.price_daily, listing.price_fortnightly, listing.price_monthly)
 
   return (
-    <Link href={`/listings/${listing.id}`} className="block w-60 no-underline group">
+    <Link href={`/listings/${listing.slug ?? listing.id}`} className="block w-60 no-underline group">
       {/* Photo */}
       <div className="relative aspect-[4/3] rounded-md overflow-hidden bg-muted mb-2">
         {listing.cover_photo ? (

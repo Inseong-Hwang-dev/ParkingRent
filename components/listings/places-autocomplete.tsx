@@ -68,8 +68,7 @@ export function PlacesAutocomplete({
             input: input.trim(),
             sessionToken: sessionTokenRef.current ?? undefined,
             includedRegionCodes: ['au'],
-            // 'address' returns precise street addresses, suitable for listing creation.
-            includedPrimaryTypes: ['address'],
+            includedPrimaryTypes: ['street_address', 'premise'],
             language: 'en',
           })
         setSuggestions(suggestions)

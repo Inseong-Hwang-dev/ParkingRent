@@ -4,13 +4,48 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Loader2, Check, MapPin, X } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Check,
+  MapPin,
+  X,
+  Trash2,
+  GripVertical,
+} from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { PlacesAutocomplete, type PlaceResult } from '@/components/listings/places-autocomplete'
 import { PhotoUploader } from '@/components/listings/photo-uploader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import type { SpaceType, VehicleType, FeatureType } from '@/types/database'
 
@@ -292,6 +327,88 @@ function PricingRow({
   )
 }
 
+// ─── Sortable photo item ──────────────────────────────────────────────────────
+
+function SortablePhoto({
+  photo,
+  index,
+  onDelete,
+  isDeleting,
+}: {
+  photo: ExistingPhoto
+  index: number
+  onDelete: (id: string) => void
+  isDeleting: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: photo.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn('relative aspect-square group', isDragging && 'z-10 opacity-75')}
+    >
+      <div className="relative h-full w-full overflow-hidden rounded-md border bg-muted">
+        <Image
+          src={photo.url}
+          alt={`Photo ${index + 1}`}
+          fill
+          sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 20vw"
+          className="object-cover"
+        />
+        {index === 0 && (
+          <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium text-white">
+            Cover
+          </span>
+        )}
+        {/* Drag handle */}
+        <button
+          type="button"
+          className={cn(
+            'absolute left-1 top-1 flex h-5 w-5 cursor-grab items-center justify-center rounded bg-black/50 text-white active:cursor-grabbing',
+            'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100'
+          )}
+          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3 w-3" />
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() => onDelete(photo.id)}
+        disabled={isDeleting}
+        className={cn(
+          'absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full',
+          'bg-destructive text-white shadow-sm',
+          'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
+          isDeleting && 'opacity-100'
+        )}
+        aria-label={`Delete photo ${index + 1}`}
+      >
+        {isDeleting ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <X className="h-3 w-3" />
+        )}
+      </button>
+    </li>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function EditListingForm({
@@ -329,6 +446,11 @@ export function EditListingForm({
   const [newPhotos, setNewPhotos] = useState<File[]>([])
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
 
   const update = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -377,6 +499,33 @@ export function EditListingForm({
     [listingId]
   )
 
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      setExistingPhotos((prev) => {
+        const oldIndex = prev.findIndex((p) => p.id === active.id)
+        const newIndex = prev.findIndex((p) => p.id === over.id)
+        const reordered = arrayMove(prev, oldIndex, newIndex).map((p, i) => ({
+          ...p,
+          sort_order: i,
+        }))
+
+        fetch(`/api/listings/${listingId}/photos`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            photos: reordered.map(({ id, sort_order }) => ({ id, sort_order })),
+          }),
+        }).catch(() => toast.error('Failed to save photo order'))
+
+        return reordered
+      })
+    },
+    [listingId]
+  )
+
   const handleNewPhotosChange = useCallback(
     (files: File[]) => {
       const max = 10 - existingPhotos.length
@@ -384,6 +533,22 @@ export function EditListingForm({
     },
     [existingPhotos.length]
   )
+
+  const handleDeleteListing = async () => {
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/listings/${listingId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error((data as { error?: string }).error || 'Failed to delete listing')
+      }
+      toast.success('Listing deleted')
+      router.push('/dashboard')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong')
+      setIsDeleting(false)
+    }
+  }
 
   const goNext = () => {
     const errs = validateStep(step, form)
@@ -433,7 +598,7 @@ export function EditListingForm({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to update listing')
+        throw new Error((data as { error?: string }).error || 'Failed to update listing')
       }
 
       for (const file of newPhotos) {
@@ -445,7 +610,7 @@ export function EditListingForm({
         })
         if (!photoRes.ok) {
           const data = await photoRes.json().catch(() => ({}))
-          console.error('Photo upload failed:', data.error)
+          console.error('Photo upload failed:', (data as { error?: string }).error)
         }
       }
 
@@ -672,52 +837,36 @@ export function EditListingForm({
             <div>
               <Label>Photos</Label>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Manage existing photos and add new ones. Maximum 10 photos total.
+                Drag to reorder. The first photo is the cover. Maximum 10 photos total.
               </p>
             </div>
 
-            {/* Existing photos */}
+            {/* Existing photos with drag-and-drop */}
             {existingPhotos.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-2">Current photos</p>
-                <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-                  {existingPhotos.map((photo, index) => (
-                    <li key={photo.id} className="relative aspect-square group">
-                      <div className="relative h-full w-full overflow-hidden rounded-md border bg-muted">
-                        <Image
-                          src={photo.url}
-                          alt={`Photo ${index + 1}`}
-                          fill
-                          sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 20vw"
-                          className="object-cover"
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={existingPhotos.map((p) => p.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                      {existingPhotos.map((photo, index) => (
+                        <SortablePhoto
+                          key={photo.id}
+                          photo={photo}
+                          index={index}
+                          onDelete={handleDeleteExistingPhoto}
+                          isDeleting={deletingPhotoId === photo.id}
                         />
-                        {index === 0 && (
-                          <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium text-white">
-                            Cover
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExistingPhoto(photo.id)}
-                        disabled={deletingPhotoId === photo.id}
-                        className={cn(
-                          'absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full',
-                          'bg-destructive text-white shadow-sm',
-                          'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
-                          deletingPhotoId === photo.id && 'opacity-100'
-                        )}
-                        aria-label={`Delete photo ${index + 1}`}
-                      >
-                        {deletingPhotoId === photo.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <X className="h-3 w-3" />
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
 
@@ -776,11 +925,48 @@ export function EditListingForm({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Edit Listing</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Update the details for your parking space.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Edit Listing</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Update the details for your parking space.
+          </p>
+        </div>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDeleting || isSubmitting}
+              className="shrink-0 gap-1.5 text-destructive hover:border-destructive hover:text-destructive"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Delete Listing
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this listing?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete your listing and all its photos. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteListing}
+                className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20"
+              >
+                Delete listing
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="mb-8">
