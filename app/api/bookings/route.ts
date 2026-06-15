@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const validPricingTypes: PricingType[] = ['daily', 'fortnightly', 'monthly']
+  const validPricingTypes: PricingType[] = ['daily', 'weekly', 'monthly']
   if (!validPricingTypes.includes(pricing_type)) {
     return NextResponse.json({ error: 'Invalid pricing_type' }, { status: 400 })
   }
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   // Fetch listing (include title for email)
   const { data: listing } = await supabase
     .from('listings')
-    .select('id, owner_id, title, is_active, is_sold_out, price_daily, price_fortnightly, price_monthly')
+    .select('id, owner_id, title, is_active, is_sold_out, price_daily, price_weekly, price_monthly')
     .eq('id', listing_id)
     .single()
 
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   // Validate the requested pricing_type is available
   const priceMap = {
     daily: listing.price_daily,
-    fortnightly: listing.price_fortnightly,
+    weekly: listing.price_weekly,
     monthly: listing.price_monthly,
   }
   if (priceMap[pricing_type] === null) {

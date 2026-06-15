@@ -12,11 +12,14 @@ import type { FilterParams } from './filter-panel'
 
 interface ListingsSearchBarProps {
   currentParams: FilterParams
+  /** Light-on-dark styling for hero sections */
+  variant?: 'default' | 'hero'
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ListingsSearchBar({ currentParams }: ListingsSearchBarProps) {
+export function ListingsSearchBar({ currentParams, variant = 'default' }: ListingsSearchBarProps) {
+  const isHero = variant === 'hero'
   const router    = useRouter()
   // useMapsLibrary triggers loading of the 'places' library. The actual API
   // calls use the global google.maps.places.* namespace once loaded.
@@ -266,7 +269,11 @@ export function ListingsSearchBar({ currentParams }: ListingsSearchBarProps) {
     <div ref={containerRef} className="relative w-full max-w-md">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Search
+            className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none ${
+              isHero ? 'text-primary-foreground/70' : 'text-muted-foreground'
+            }`}
+          />
           <Input
             ref={inputRef}
             value={inputValue}
@@ -274,7 +281,11 @@ export function ListingsSearchBar({ currentParams }: ListingsSearchBarProps) {
             onKeyDown={handleKeyDown}
             onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
             placeholder="Suburb, postcode or address…"
-            className="pl-9 pr-8"
+            className={
+              isHero
+                ? 'pl-9 pr-8 border-primary-foreground/40 bg-primary-foreground/10 text-white placeholder:text-primary-foreground/60'
+                : 'pl-9 pr-8'
+            }
             autoComplete="off"
             aria-label="Search location"
             aria-expanded={showDropdown}
@@ -286,7 +297,11 @@ export function ListingsSearchBar({ currentParams }: ListingsSearchBarProps) {
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors ${
+                isHero
+                  ? 'text-primary-foreground/70 hover:text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
               aria-label="Clear search"
             >
               <X className="h-3.5 w-3.5" />

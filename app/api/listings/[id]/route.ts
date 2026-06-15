@@ -70,7 +70,7 @@ export async function PATCH(
     vehicles?: VehicleType[]
     features?: FeatureType[]
     price_daily?: number | null
-    price_fortnightly?: number | null
+    price_weekly?: number | null
     price_monthly?: number | null
     access_instructions?: string | null
     is_sold_out?: boolean
@@ -96,7 +96,7 @@ export async function PATCH(
   if (typeof body.lng === 'number') patch.lng = body.lng
   if (typeof body.space_type === 'string') patch.space_type = body.space_type
   if ('price_daily' in body) patch.price_daily = body.price_daily
-  if ('price_fortnightly' in body) patch.price_fortnightly = body.price_fortnightly
+  if ('price_weekly' in body) patch.price_weekly = body.price_weekly
   if ('price_monthly' in body) patch.price_monthly = body.price_monthly
   if ('access_instructions' in body) patch.access_instructions = body.access_instructions
   if (typeof body.is_sold_out === 'boolean') patch.is_sold_out = body.is_sold_out

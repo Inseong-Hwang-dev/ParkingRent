@@ -113,7 +113,7 @@ const STEPS = [
     step: 2,
     title: 'Send a Booking Request',
     description:
-      'Found a space you like? Send a booking request to the owner. Choose your preferred pricing type (daily, fortnightly, or monthly) and include an optional message.',
+      'Found a space you like? Send a booking request to the owner. Choose your preferred pricing type (daily, weekly, or monthly) and include an optional message.',
     detail:
       'You\'ll need a free account to send a request. The owner will be notified immediately.',
   },

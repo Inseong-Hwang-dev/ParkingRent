@@ -59,14 +59,14 @@ export default async function HomePage() {
           </p>
 
           <div className="mx-auto max-w-lg">
-            <ListingsSearchBar currentParams={{}} />
+            <ListingsSearchBar currentParams={{}} variant="hero" />
           </div>
 
           <div className="flex gap-3 justify-center pt-2">
             <Button variant="secondary" size="sm" asChild>
-              <Link href="/listings/new">List Your Space — It&apos;s Free</Link>
+              <Link href="/listings/new">List Your Space - It&apos;s Free</Link>
             </Button>
-            <Button variant="outline" size="sm" className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10" asChild>
+            <Button variant="secondary" size="sm" asChild>
               <Link href="/how-it-works">How It Works</Link>
             </Button>
           </div>

@@ -23,7 +23,7 @@ export type FeatureType =
 
 export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled";
 
-export type PricingType = "daily" | "fortnightly" | "monthly";
+export type PricingType = "daily" | "weekly" | "monthly";
 
 export type NotificationType =
   | "booking_request"
@@ -82,7 +82,7 @@ export type Database = {
           lng: number;
           space_type: SpaceType;
           price_daily: number | null;
-          price_fortnightly: number | null;
+          price_weekly: number | null;
           price_monthly: number | null;
           access_instructions: string | null;
           is_sold_out: boolean;
@@ -105,7 +105,7 @@ export type Database = {
           lng: number;
           space_type: SpaceType;
           price_daily?: number | null;
-          price_fortnightly?: number | null;
+          price_weekly?: number | null;
           price_monthly?: number | null;
           access_instructions?: string | null;
           is_sold_out?: boolean;
@@ -128,7 +128,7 @@ export type Database = {
           lng?: number;
           space_type?: SpaceType;
           price_daily?: number | null;
-          price_fortnightly?: number | null;
+          price_weekly?: number | null;
           price_monthly?: number | null;
           access_instructions?: string | null;
           is_sold_out?: boolean;
@@ -376,7 +376,7 @@ export type Database = {
           lng: number;
           space_type: SpaceType;
           price_daily: number | null;
-          price_fortnightly: number | null;
+          price_weekly: number | null;
           price_monthly: number | null;
           access_instructions: string | null;
           is_sold_out: boolean;

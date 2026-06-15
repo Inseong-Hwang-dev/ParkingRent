@@ -30,6 +30,7 @@ export function ProfileForm({ initialData, isOAuthUser }: ProfileFormProps) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     initialData.avatar_url
   );
+  const [phone, setPhone] = useState(initialData.phone ?? "");
   const [isPending, setIsPending] = useState(false);
   const [isPendingPw, setIsPendingPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +65,7 @@ export function ProfileForm({ initialData, isOAuthUser }: ProfileFormProps) {
     if (result?.error) {
       toast.error(result.error);
     } else {
+      setPhone((formData.get("phone") as string | null)?.trim() ?? "");
       toast.success("Profile saved successfully.");
     }
   }
@@ -195,7 +197,8 @@ export function ProfileForm({ initialData, isOAuthUser }: ProfileFormProps) {
                 name="phone"
                 type="tel"
                 autoComplete="tel"
-                defaultValue={initialData.phone ?? ""}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 placeholder="04xx xxx xxx"
               />
             </div>

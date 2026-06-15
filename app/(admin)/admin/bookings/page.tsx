@@ -42,7 +42,7 @@ const STATUS_BADGE: Record<BookingStatus, React.ComponentProps<typeof Badge>['va
 
 const PRICING_LABELS: Record<string, string> = {
   daily: 'Daily',
-  fortnightly: 'Fortnightly',
+  weekly: 'Weekly',
   monthly: 'Monthly',
 }
 

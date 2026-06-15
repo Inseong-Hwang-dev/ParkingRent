@@ -58,7 +58,7 @@ const STATUS_VARIANTS: Record<
 
 const PRICING_LABELS: Record<string, string> = {
   daily: "Daily",
-  fortnightly: "Fortnightly",
+  weekly: "Weekly",
   monthly: "Monthly",
 };
 
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
       label: "Sent Requests",
       value: sentRequests ?? 0,
       icon: Send,
-      href: "/bookings",
+      href: "/bookings?tab=sent",
     },
   ];
 

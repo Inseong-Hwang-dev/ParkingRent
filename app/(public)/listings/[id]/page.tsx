@@ -157,8 +157,8 @@ export default async function ListingDetailPage({
 
   const availablePricing: { type: PricingType; price: number }[] = []
   if (listing.price_daily !== null) availablePricing.push({ type: 'daily', price: listing.price_daily })
-  if (listing.price_fortnightly !== null)
-    availablePricing.push({ type: 'fortnightly', price: listing.price_fortnightly })
+  if (listing.price_weekly !== null)
+    availablePricing.push({ type: 'weekly', price: listing.price_weekly })
   if (listing.price_monthly !== null)
     availablePricing.push({ type: 'monthly', price: listing.price_monthly })
 

@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
 import {
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   Check,
   MapPin,
@@ -35,6 +33,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,15 +49,6 @@ import { cn } from '@/lib/utils'
 import type { SpaceType, VehicleType, FeatureType } from '@/types/database'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const STEPS = [
-  'Basic Info',
-  'Location',
-  'Space Details',
-  'Pricing',
-  'Photos',
-  'Access Info',
-] as const
 
 const SPACE_TYPES: { value: SpaceType; label: string; description: string }[] = [
   { value: 'drive_away', label: 'Drive Away', description: 'Open driveway with direct street access' },
@@ -107,7 +97,7 @@ type InitialData = {
   vehicles: VehicleType[]
   features: FeatureType[]
   price_daily: number | null
-  price_fortnightly: number | null
+  price_weekly: number | null
   price_monthly: number | null
   access_instructions: string | null
   photos: ExistingPhoto[]
@@ -127,8 +117,8 @@ type FormState = {
   features: FeatureType[]
   daily_enabled: boolean
   price_daily: string
-  fortnightly_enabled: boolean
-  price_fortnightly: string
+  weekly_enabled: boolean
+  price_weekly: string
   monthly_enabled: boolean
   price_monthly: string
   access_instructions: string
@@ -138,44 +128,36 @@ type Errors = Partial<Record<keyof FormState | '_pricing', string>>
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
-function validateStep(step: number, form: FormState): Errors {
+function validateForm(form: FormState): Errors {
   const errors: Errors = {}
 
-  if (step === 0) {
-    if (!form.title.trim()) errors.title = 'Title is required'
-    else if (form.title.trim().length < 5) errors.title = 'Title must be at least 5 characters'
-  }
+  if (!form.title.trim()) errors.title = 'Title is required'
+  else if (form.title.trim().length < 5) errors.title = 'Title must be at least 5 characters'
 
-  if (step === 1) {
-    if (!form.address.trim()) errors.address = 'Address is required'
-    else if (form.lat === null || form.lng === null)
-      errors.address = 'Please select an address from the suggestions'
-    if (!form.suburb) errors.suburb = 'Select an address from the dropdown to populate suburb'
-  }
+  if (!form.address.trim()) errors.address = 'Address is required'
+  else if (form.lat === null || form.lng === null)
+    errors.address = 'Please select an address from the suggestions'
+  if (!form.suburb) errors.suburb = 'Select an address from the dropdown to populate suburb'
 
-  if (step === 2) {
-    if (!form.space_type) errors.space_type = 'Please select a space type'
-    if (form.vehicles.length === 0) errors.vehicles = 'Select at least one vehicle type'
-  }
+  if (!form.space_type) errors.space_type = 'Please select a space type'
+  if (form.vehicles.length === 0) errors.vehicles = 'Select at least one vehicle type'
 
-  if (step === 3) {
-    const anyEnabled = form.daily_enabled || form.fortnightly_enabled || form.monthly_enabled
-    if (!anyEnabled) {
-      errors._pricing = 'Enable at least one pricing option'
-    } else {
-      if (form.daily_enabled) {
-        const v = parseFloat(form.price_daily)
-        if (!form.price_daily || isNaN(v) || v <= 0) errors.price_daily = 'Enter a valid daily price'
-      }
-      if (form.fortnightly_enabled) {
-        const v = parseFloat(form.price_fortnightly)
-        if (!form.price_fortnightly || isNaN(v) || v <= 0)
-          errors.price_fortnightly = 'Enter a valid fortnightly price'
-      }
-      if (form.monthly_enabled) {
-        const v = parseFloat(form.price_monthly)
-        if (!form.price_monthly || isNaN(v) || v <= 0) errors.price_monthly = 'Enter a valid monthly price'
-      }
+  const anyEnabled = form.daily_enabled || form.weekly_enabled || form.monthly_enabled
+  if (!anyEnabled) {
+    errors._pricing = 'Enable at least one pricing option'
+  } else {
+    if (form.daily_enabled) {
+      const v = parseFloat(form.price_daily)
+      if (!form.price_daily || isNaN(v) || v <= 0) errors.price_daily = 'Enter a valid daily price'
+    }
+    if (form.weekly_enabled) {
+      const v = parseFloat(form.price_weekly)
+      if (!form.price_weekly || isNaN(v) || v <= 0)
+        errors.price_weekly = 'Enter a valid weekly price'
+    }
+    if (form.monthly_enabled) {
+      const v = parseFloat(form.price_monthly)
+      if (!form.price_monthly || isNaN(v) || v <= 0) errors.price_monthly = 'Enter a valid monthly price'
     }
   }
 
@@ -184,52 +166,11 @@ function validateStep(step: number, form: FormState): Errors {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function StepIndicator({ current, total }: { current: number; total: number }) {
+function SectionHeading({ title }: { title: string }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm sm:hidden">
-        <span className="font-medium">{STEPS[current]}</span>
-        <span className="text-muted-foreground">
-          {current + 1} of {total}
-        </span>
-      </div>
-      <ol className="hidden sm:flex items-center gap-1" aria-label="Form progress">
-        {STEPS.map((label, index) => {
-          const done = index < current
-          const active = index === current
-          return (
-            <li key={label} className="flex items-center gap-1">
-              <span
-                className={cn(
-                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                  done && 'bg-primary text-primary-foreground',
-                  active && 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2',
-                  !done && !active && 'bg-muted text-muted-foreground'
-                )}
-                aria-current={active ? 'step' : undefined}
-              >
-                {done ? <Check className="h-3 w-3" /> : index + 1}
-              </span>
-              <span
-                className={cn(
-                  'text-xs font-medium',
-                  active ? 'text-foreground' : 'text-muted-foreground'
-                )}
-              >
-                {label}
-              </span>
-              {index < STEPS.length - 1 && <span className="mx-1 h-px w-4 bg-border" aria-hidden />}
-            </li>
-          )
-        })}
-      </ol>
-      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-300"
-          style={{ width: `${((current + 1) / total) * 100}%` }}
-          aria-hidden
-        />
-      </div>
+    <div className="flex items-center gap-3">
+      <h2 className="shrink-0 text-base font-semibold">{title}</h2>
+      <Separator className="flex-1" />
     </div>
   )
 }
@@ -420,7 +361,6 @@ export function EditListingForm({
 }) {
   const router = useRouter()
 
-  const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>({
     title: initialData.title,
     description: initialData.description ?? '',
@@ -435,8 +375,8 @@ export function EditListingForm({
     features: initialData.features,
     daily_enabled: initialData.price_daily !== null,
     price_daily: initialData.price_daily?.toString() ?? '',
-    fortnightly_enabled: initialData.price_fortnightly !== null,
-    price_fortnightly: initialData.price_fortnightly?.toString() ?? '',
+    weekly_enabled: initialData.price_weekly !== null,
+    price_weekly: initialData.price_weekly?.toString() ?? '',
     monthly_enabled: initialData.price_monthly !== null,
     price_monthly: initialData.price_monthly?.toString() ?? '',
     access_instructions: initialData.access_instructions ?? '',
@@ -550,23 +490,8 @@ export function EditListingForm({
     }
   }
 
-  const goNext = () => {
-    const errs = validateStep(step, form)
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs)
-      return
-    }
-    setErrors({})
-    setStep((s) => s + 1)
-  }
-
-  const goBack = () => {
-    setErrors({})
-    setStep((s) => s - 1)
-  }
-
   const handleSubmit = async () => {
-    const errs = validateStep(step, form)
+    const errs = validateForm(form)
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
       return
@@ -590,7 +515,7 @@ export function EditListingForm({
           vehicles: form.vehicles,
           features: form.features,
           price_daily: form.daily_enabled ? parseFloat(form.price_daily) : null,
-          price_fortnightly: form.fortnightly_enabled ? parseFloat(form.price_fortnightly) : null,
+          price_weekly: form.weekly_enabled ? parseFloat(form.price_weekly) : null,
           price_monthly: form.monthly_enabled ? parseFloat(form.price_monthly) : null,
           access_instructions: form.access_instructions.trim() || null,
         }),
@@ -623,303 +548,7 @@ export function EditListingForm({
     }
   }
 
-  // ─── Step content ─────────────────────────────────────────────────────────
-
   const totalPhotoCount = existingPhotos.length + newPhotos.length
-
-  const renderStep = () => {
-    switch (step) {
-      case 0:
-        return (
-          <div className="space-y-5">
-            <div>
-              <Label htmlFor="title">
-                Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="title"
-                value={form.title}
-                onChange={(e) => update('title', e.target.value)}
-                placeholder="e.g. Secure undercover spot in South Yarra"
-                className={cn('mt-1.5', errors.title && 'border-destructive')}
-                maxLength={120}
-              />
-              <FieldError message={errors.title} />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(e) => update('description', e.target.value)}
-                placeholder="Describe access, nearby landmarks, any relevant details…"
-                rows={4}
-                className="mt-1.5 resize-none"
-                maxLength={1000}
-              />
-              <p className="mt-1 text-right text-xs text-muted-foreground">
-                {form.description.length} / 1000
-              </p>
-            </div>
-          </div>
-        )
-
-      case 1:
-        return (
-          <div className="space-y-5">
-            <div>
-              <Label htmlFor="address">
-                Address <span className="text-destructive">*</span>
-              </Label>
-              <p className="mb-1.5 mt-0.5 text-xs text-muted-foreground">
-                Type your address and select from the suggestions to fill in the details below.
-              </p>
-              <PlacesAutocomplete
-                value={form.address}
-                onChange={(v) => {
-                  update('address', v)
-                  if (form.lat !== null) {
-                    setForm((prev) => ({ ...prev, lat: null, lng: null }))
-                  }
-                }}
-                onPlaceSelect={handlePlaceSelect}
-                error={errors.address}
-              />
-            </div>
-            {(form.suburb || form.state || form.postcode) && (
-              <div className="rounded-lg border bg-muted/40 p-4">
-                <div className="flex items-start gap-2">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Suburb</p>
-                      <p className="font-medium">{form.suburb || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">State</p>
-                      <p className="font-medium">{form.state || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Postcode</p>
-                      <p className="font-medium">{form.postcode || '—'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {errors.suburb && !errors.address && <FieldError message={errors.suburb} />}
-          </div>
-        )
-
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div>
-              <Label>
-                Space Type <span className="text-destructive">*</span>
-              </Label>
-              <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
-                Choose the option that best describes your space.
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {SPACE_TYPES.map(({ value, label, description }) => (
-                  <label
-                    key={value}
-                    className={cn(
-                      'flex cursor-pointer gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50',
-                      form.space_type === value ? 'border-primary bg-primary/5' : 'border-input'
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="space_type"
-                      value={value}
-                      checked={form.space_type === value}
-                      onChange={() => update('space_type', value)}
-                      className="mt-0.5 shrink-0 accent-primary"
-                    />
-                    <div>
-                      <p className="font-medium">{label}</p>
-                      <p className="text-xs text-muted-foreground">{description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <FieldError message={errors.space_type} />
-            </div>
-            <div>
-              <Label>
-                Suitable For <span className="text-destructive">*</span>
-              </Label>
-              <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
-                Select all vehicle types that fit in your space.
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {VEHICLE_TYPES.map(({ value, label }) => (
-                  <CheckboxItem
-                    key={value}
-                    checked={form.vehicles.includes(value)}
-                    onChange={() => toggleArrayItem('vehicles', value)}
-                    label={label}
-                  />
-                ))}
-              </div>
-              <FieldError message={errors.vehicles} />
-            </div>
-            <div>
-              <Label>Features</Label>
-              <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
-                Optional — tick any that apply.
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {FEATURES.map(({ value, label }) => (
-                  <CheckboxItem
-                    key={value}
-                    checked={form.features.includes(value)}
-                    onChange={() => toggleArrayItem('features', value)}
-                    label={label}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-
-      case 3:
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label>
-                Pricing <span className="text-destructive">*</span>
-              </Label>
-              <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
-                Enable one or more pricing options. All amounts are in AUD.
-              </p>
-            </div>
-            {errors._pricing && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {errors._pricing}
-              </p>
-            )}
-            <PricingRow
-              label="Daily"
-              period="per day"
-              enabled={form.daily_enabled}
-              onToggle={() => update('daily_enabled', !form.daily_enabled)}
-              value={form.price_daily}
-              onChange={(v) => update('price_daily', v)}
-              error={errors.price_daily}
-            />
-            <PricingRow
-              label="Fortnightly"
-              period="per fortnight"
-              enabled={form.fortnightly_enabled}
-              onToggle={() => update('fortnightly_enabled', !form.fortnightly_enabled)}
-              value={form.price_fortnightly}
-              onChange={(v) => update('price_fortnightly', v)}
-              error={errors.price_fortnightly}
-            />
-            <PricingRow
-              label="Monthly"
-              period="per month"
-              enabled={form.monthly_enabled}
-              onToggle={() => update('monthly_enabled', !form.monthly_enabled)}
-              value={form.price_monthly}
-              onChange={(v) => update('price_monthly', v)}
-              error={errors.price_monthly}
-            />
-          </div>
-        )
-
-      case 4:
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label>Photos</Label>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Drag to reorder. The first photo is the cover. Maximum 10 photos total.
-              </p>
-            </div>
-
-            {/* Existing photos with drag-and-drop */}
-            {existingPhotos.length > 0 && (
-              <div>
-                <p className="text-sm font-medium mb-2">Current photos</p>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={existingPhotos.map((p) => p.id)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-                      {existingPhotos.map((photo, index) => (
-                        <SortablePhoto
-                          key={photo.id}
-                          photo={photo}
-                          index={index}
-                          onDelete={handleDeleteExistingPhoto}
-                          isDeleting={deletingPhotoId === photo.id}
-                        />
-                      ))}
-                    </ul>
-                  </SortableContext>
-                </DndContext>
-              </div>
-            )}
-
-            {/* Add new photos */}
-            {totalPhotoCount < 10 && (
-              <div>
-                {existingPhotos.length > 0 && (
-                  <p className="text-sm font-medium mb-2">Add more photos</p>
-                )}
-                <PhotoUploader files={newPhotos} onChange={handleNewPhotosChange} />
-              </div>
-            )}
-
-            {totalPhotoCount >= 10 && (
-              <p className="text-xs text-muted-foreground">
-                Maximum 10 photos reached. Delete existing photos to add new ones.
-              </p>
-            )}
-
-            <p className="text-xs text-muted-foreground text-right">
-              {totalPhotoCount} / 10 photos
-            </p>
-          </div>
-        )
-
-      case 5:
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="access_instructions">Access Instructions</Label>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                These details are only shown to the renter after a booking is accepted — not publicly visible.
-              </p>
-              <Textarea
-                id="access_instructions"
-                value={form.access_instructions}
-                onChange={(e) => update('access_instructions', e.target.value)}
-                placeholder="e.g. Enter via the rear laneway. Gate code is 1234. Space is marked B2."
-                rows={5}
-                className="mt-1.5 resize-none"
-                maxLength={2000}
-              />
-              <p className="mt-1 text-right text-xs text-muted-foreground">
-                {form.access_instructions.length} / 2000
-              </p>
-            </div>
-          </div>
-        )
-
-      default:
-        return null
-    }
-  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -969,47 +598,306 @@ export function EditListingForm({
         </AlertDialog>
       </div>
 
-      <div className="mb-8">
-        <StepIndicator current={step} total={STEPS.length} />
+      <div className="space-y-8">
+        {/* ── Basic Info ── */}
+        <section className="space-y-5">
+          <SectionHeading title="Basic Info" />
+
+          <div>
+            <Label htmlFor="title">
+              Title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="title"
+              value={form.title}
+              onChange={(e) => update('title', e.target.value)}
+              placeholder="e.g. Secure undercover spot in South Yarra"
+              className={cn('mt-1.5', errors.title && 'border-destructive')}
+              maxLength={120}
+            />
+            <FieldError message={errors.title} />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={form.description}
+              onChange={(e) => update('description', e.target.value)}
+              placeholder="Describe access, nearby landmarks, any relevant details…"
+              rows={4}
+              className="mt-1.5 resize-none"
+              maxLength={1000}
+            />
+            <p className="mt-1 text-right text-xs text-muted-foreground">
+              {form.description.length} / 1000
+            </p>
+          </div>
+        </section>
+
+        {/* ── Location ── */}
+        <section className="space-y-5">
+          <SectionHeading title="Location" />
+
+          <div>
+            <Label htmlFor="address">
+              Address <span className="text-destructive">*</span>
+            </Label>
+            <p className="mb-1.5 mt-0.5 text-xs text-muted-foreground">
+              Type your address and select from the suggestions to fill in the details below.
+            </p>
+            <PlacesAutocomplete
+              value={form.address}
+              onChange={(v) => {
+                update('address', v)
+                if (form.lat !== null) {
+                  setForm((prev) => ({ ...prev, lat: null, lng: null }))
+                }
+              }}
+              onPlaceSelect={handlePlaceSelect}
+              error={errors.address}
+            />
+          </div>
+
+          {(form.suburb || form.state || form.postcode) && (
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <div className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Suburb</p>
+                    <p className="font-medium">{form.suburb || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">State</p>
+                    <p className="font-medium">{form.state || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Postcode</p>
+                    <p className="font-medium">{form.postcode || '—'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {errors.suburb && !errors.address && <FieldError message={errors.suburb} />}
+        </section>
+
+        {/* ── Space Details ── */}
+        <section className="space-y-6">
+          <SectionHeading title="Space Details" />
+
+          <div>
+            <Label>
+              Space Type <span className="text-destructive">*</span>
+            </Label>
+            <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+              Choose the option that best describes your space.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SPACE_TYPES.map(({ value, label, description }) => (
+                <label
+                  key={value}
+                  className={cn(
+                    'flex cursor-pointer gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50',
+                    form.space_type === value ? 'border-primary bg-primary/5' : 'border-input'
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="space_type"
+                    value={value}
+                    checked={form.space_type === value}
+                    onChange={() => update('space_type', value)}
+                    className="mt-0.5 shrink-0 accent-primary"
+                  />
+                  <div>
+                    <p className="font-medium">{label}</p>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <FieldError message={errors.space_type} />
+          </div>
+
+          <div>
+            <Label>
+              Suitable For <span className="text-destructive">*</span>
+            </Label>
+            <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+              Select all vehicle types that fit in your space.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {VEHICLE_TYPES.map(({ value, label }) => (
+                <CheckboxItem
+                  key={value}
+                  checked={form.vehicles.includes(value)}
+                  onChange={() => toggleArrayItem('vehicles', value)}
+                  label={label}
+                />
+              ))}
+            </div>
+            <FieldError message={errors.vehicles} />
+          </div>
+
+          <div>
+            <Label>Features</Label>
+            <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+              Optional — tick any that apply.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {FEATURES.map(({ value, label }) => (
+                <CheckboxItem
+                  key={value}
+                  checked={form.features.includes(value)}
+                  onChange={() => toggleArrayItem('features', value)}
+                  label={label}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pricing ── */}
+        <section className="space-y-4">
+          <SectionHeading title="Pricing" />
+
+          <p className="text-xs text-muted-foreground">
+            Enable one or more pricing options. All amounts are in AUD.
+          </p>
+
+          {errors._pricing && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {errors._pricing}
+            </p>
+          )}
+
+          <PricingRow
+            label="Daily"
+            period="per day"
+            enabled={form.daily_enabled}
+            onToggle={() => update('daily_enabled', !form.daily_enabled)}
+            value={form.price_daily}
+            onChange={(v) => update('price_daily', v)}
+            error={errors.price_daily}
+          />
+          <PricingRow
+            label="Weekly"
+            period="per week"
+            enabled={form.weekly_enabled}
+            onToggle={() => update('weekly_enabled', !form.weekly_enabled)}
+            value={form.price_weekly}
+            onChange={(v) => update('price_weekly', v)}
+            error={errors.price_weekly}
+          />
+          <PricingRow
+            label="Monthly"
+            period="per month"
+            enabled={form.monthly_enabled}
+            onToggle={() => update('monthly_enabled', !form.monthly_enabled)}
+            value={form.price_monthly}
+            onChange={(v) => update('price_monthly', v)}
+            error={errors.price_monthly}
+          />
+        </section>
+
+        {/* ── Photos ── */}
+        <section className="space-y-4">
+          <SectionHeading title="Photos" />
+
+          <p className="text-xs text-muted-foreground">
+            Drag to reorder. The first photo is the cover. Maximum 10 photos total.
+          </p>
+
+          {existingPhotos.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Current photos</p>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={existingPhotos.map((p) => p.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                    {existingPhotos.map((photo, index) => (
+                      <SortablePhoto
+                        key={photo.id}
+                        photo={photo}
+                        index={index}
+                        onDelete={handleDeleteExistingPhoto}
+                        isDeleting={deletingPhotoId === photo.id}
+                      />
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
+
+          {totalPhotoCount < 10 && (
+            <div>
+              {existingPhotos.length > 0 && (
+                <p className="text-sm font-medium mb-2">Add more photos</p>
+              )}
+              <PhotoUploader files={newPhotos} onChange={handleNewPhotosChange} />
+            </div>
+          )}
+
+          {totalPhotoCount >= 10 && (
+            <p className="text-xs text-muted-foreground">
+              Maximum 10 photos reached. Delete existing photos to add new ones.
+            </p>
+          )}
+
+          <p className="text-xs text-muted-foreground text-right">
+            {totalPhotoCount} / 10 photos
+          </p>
+        </section>
+
+        {/* ── Access Instructions ── */}
+        <section className="space-y-4">
+          <SectionHeading title="Access Instructions" />
+
+          <div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              These details are only shown to the renter after a booking is accepted — not publicly visible.
+            </p>
+            <Textarea
+              id="access_instructions"
+              value={form.access_instructions}
+              onChange={(e) => update('access_instructions', e.target.value)}
+              placeholder="e.g. Enter via the rear laneway. Gate code is 1234. Space is marked B2."
+              rows={5}
+              className="mt-1.5 resize-none"
+              maxLength={2000}
+            />
+            <p className="mt-1 text-right text-xs text-muted-foreground">
+              {form.access_instructions.length} / 2000
+            </p>
+          </div>
+        </section>
       </div>
 
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="mb-5 text-base font-semibold">{STEPS[step]}</h2>
-        {renderStep()}
-      </div>
-
-      <div className="mt-6 flex items-center justify-between gap-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={goBack}
-          disabled={step === 0 || isSubmitting}
-          className="gap-2"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back
+      {/* Submit */}
+      <div className="mt-8 flex justify-end">
+        <Button type="button" onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" />
+              Save Changes
+            </>
+          )}
         </Button>
-
-        {step < STEPS.length - 1 ? (
-          <Button type="button" onClick={goNext} className="gap-2">
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button type="button" onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        )}
       </div>
     </div>
   )

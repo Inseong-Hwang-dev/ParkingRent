@@ -13,7 +13,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { PriceMarker } from './listings-map-marker'
-import type { SpaceType, VehicleType } from '@/types/database'
+import {
+  formatPriceAmount,
+  getPriceForPreference,
+  PRICE_PREFERENCE_LABELS,
+  PRICE_PREFERENCE_ORDER,
+} from '@/lib/listing-prices'
+import type { PricingType, SpaceType, VehicleType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,7 +33,7 @@ export interface MapListing {
   state: string
   space_type: SpaceType
   price_daily: number | null
-  price_fortnightly: number | null
+  price_weekly: number | null
   price_monthly: number | null
   is_sold_out: boolean
   cover_photo: { url: string } | null
@@ -67,15 +73,40 @@ function MapController({ searchLocation }: { searchLocation: { lat: number; lng:
   return null
 }
 
-function cheapestPrice(
-  daily: number | null,
-  fortnightly: number | null,
-  monthly: number | null
-): { amount: number; label: string } | null {
-  if (daily !== null) return { amount: daily, label: '/day' }
-  if (monthly !== null) return { amount: monthly, label: '/mo' }
-  if (fortnightly !== null) return { amount: fortnightly, label: '/fn' }
-  return null
+// ─── Map price preference selector ────────────────────────────────────────────
+
+function MapPriceSelector({
+  value,
+  onChange,
+}: {
+  value: PricingType
+  onChange: (value: PricingType) => void
+}) {
+  return (
+    <div className="absolute top-3 left-50 z-10">
+      <div
+        className="flex rounded-lg border bg-background/95 p-1 shadow-md backdrop-blur-sm"
+        role="group"
+        aria-label="Map price display"
+      >
+        {PRICE_PREFERENCE_ORDER.map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => onChange(type)}
+            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              value === type
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+            aria-pressed={value === type}
+          >
+            {PRICE_PREFERENCE_LABELS[type]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ─── Map inner component (rendered inside APIProvider) ────────────────────────
@@ -85,6 +116,7 @@ interface ListingsMapInnerProps {
   initialCenter: { lat: number; lng: number }
   searchLocation: { lat: number; lng: number } | null
   filters: Record<string, string | string[] | undefined>
+  pricePreference: PricingType
   hoveredListingId: string | null
   selectedListingId: string | null
   onMarkerClick: (id: string) => void
@@ -98,6 +130,7 @@ function ListingsMapInner({
   initialCenter,
   searchLocation,
   filters,
+  pricePreference,
   hoveredListingId,
   selectedListingId,
   onMarkerClick,
@@ -219,7 +252,12 @@ function ListingsMapInner({
       <MapController searchLocation={searchLocation} />
 
       {markers.map((listing) => {
-        const price = cheapestPrice(listing.price_daily, listing.price_fortnightly, listing.price_monthly)
+        const price = getPriceForPreference(
+          listing.price_daily,
+          listing.price_weekly,
+          listing.price_monthly,
+          pricePreference
+        )
         const isHovered = hoveredListingId === listing.id
         const isSelected = selectedListingId === listing.id
 
@@ -251,7 +289,7 @@ function ListingsMapInner({
           onCloseClick={onDeselect}
           headerDisabled
         >
-          <InfoCard listing={infoListing} />
+          <InfoCard listing={infoListing} pricePreference={pricePreference} />
         </InfoWindow>
       )}
     </Map>
@@ -260,8 +298,19 @@ function ListingsMapInner({
 
 // ─── InfoWindow mini-card ─────────────────────────────────────────────────────
 
-function InfoCard({ listing }: { listing: MapListing }) {
-  const price = cheapestPrice(listing.price_daily, listing.price_fortnightly, listing.price_monthly)
+function InfoCard({
+  listing,
+  pricePreference,
+}: {
+  listing: MapListing
+  pricePreference: PricingType
+}) {
+  const price = getPriceForPreference(
+    listing.price_daily,
+    listing.price_weekly,
+    listing.price_monthly,
+    pricePreference
+  )
 
   return (
     <Link href={`/listings/${listing.slug ?? listing.id}`} className="block w-60 no-underline group">
@@ -300,7 +349,7 @@ function InfoCard({ listing }: { listing: MapListing }) {
         </Badge>
         {price && (
           <span className="text-sm font-bold text-primary whitespace-nowrap">
-            ${price.amount.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            ${formatPriceAmount(price.amount)}
             <span className="text-xs font-normal text-muted-foreground">{price.label}</span>
           </span>
         )}
@@ -318,6 +367,8 @@ export interface ListingsMapProps {
   initialListings: MapListing[]
   filters: Record<string, string | string[] | undefined>
   searchLocation?: { lat: number; lng: number } | null
+  pricePreference: PricingType
+  onPricePreferenceChange: (value: PricingType) => void
   hoveredListingId: string | null
   selectedListingId: string | null
   onMarkerClick: (id: string) => void
@@ -337,7 +388,11 @@ export function ListingsMap(props: ListingsMapProps) {
       : MELBOURNE_CENTER
 
   return (
-    <div className="w-full h-full">
+    <div className="relative w-full h-full">
+      <MapPriceSelector
+        value={props.pricePreference}
+        onChange={props.onPricePreferenceChange}
+      />
       <ListingsMapInner
         {...props}
         initialCenter={initialCenter}

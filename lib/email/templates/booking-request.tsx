@@ -14,14 +14,14 @@ import { createElement } from 'react'
 
 const PRICING_LABELS: Record<string, string> = {
   daily: 'Daily',
-  fortnightly: 'Fortnightly',
+  weekly: 'Weekly',
   monthly: 'Monthly',
 }
 
 export interface BookingRequestEmailProps {
   buyerName: string
   listingTitle: string
-  pricingType: 'daily' | 'fortnightly' | 'monthly'
+  pricingType: 'daily' | 'weekly' | 'monthly'
   message?: string | null
   bookingUrl: string
 }

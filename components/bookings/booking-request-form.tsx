@@ -18,7 +18,7 @@ import type { PricingType } from '@/types/database'
 
 const PRICING_LABELS: Record<PricingType, string> = {
   daily: 'Daily',
-  fortnightly: 'Fortnightly',
+  weekly: 'Weekly',
   monthly: 'Monthly',
 }
 

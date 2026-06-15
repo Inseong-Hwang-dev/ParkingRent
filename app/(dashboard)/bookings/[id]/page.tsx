@@ -30,7 +30,7 @@ const STATUS_VARIANTS: Record<BookingStatus, React.ComponentProps<typeof Badge>[
 
 const PRICING_LABELS: Record<PricingType, string> = {
   daily: 'Daily',
-  fortnightly: 'Fortnightly',
+  weekly: 'Weekly',
   monthly: 'Monthly',
 }
 

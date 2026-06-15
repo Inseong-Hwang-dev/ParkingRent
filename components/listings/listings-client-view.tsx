@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ListingCard } from './listing-card'
 import { ListingsMap } from './listings-map'
 import type { MapListing } from './listings-map'
+import type { PricingType } from '@/types/database'
 
 export type { MapListing }
 
@@ -27,6 +28,7 @@ export function ListingsClientView({
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null)
   const [mapListings, setMapListings]             = useState<MapListing[]>(listings)
   const [mobileMapOpen, setMobileMapOpen]         = useState(false)
+  const [pricePreference, setPricePreference]     = useState<PricingType>('monthly')
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const handleMarkerClick = useCallback((id: string) => {
@@ -54,6 +56,8 @@ export function ListingsClientView({
     initialListings: listings,
     filters,
     searchLocation,
+    pricePreference,
+    onPricePreferenceChange: setPricePreference,
     hoveredListingId,
     selectedListingId,
     onMarkerClick: handleMarkerClick,
@@ -93,7 +97,7 @@ export function ListingsClientView({
               </Button>
             </div>
           ) : (
-            <div className="p-3 space-y-2">
+            <div className="p-2 space-y-1.5">
               {mapListings.map((listing) => {
                 const isSelected = selectedListingId === listing.id
                 const isHovered  = hoveredListingId  === listing.id
@@ -106,15 +110,15 @@ export function ListingsClientView({
                     }}
                     onMouseEnter={() => setHoveredListingId(listing.id)}
                     onMouseLeave={() => setHoveredListingId(null)}
-                    className={`rounded-xl ring-2 transition-all ${
+                    className={`rounded-lg ring-2 transition-all ${
                       isSelected
-                        ? 'ring-primary shadow-md'
+                        ? 'ring-primary shadow-sm'
                         : isHovered
                         ? 'ring-primary/40'
                         : 'ring-transparent'
                     }`}
                   >
-                    <ListingCard listing={listing} />
+                    <ListingCard listing={listing} variant="compact" />
                   </div>
                 )
               })}

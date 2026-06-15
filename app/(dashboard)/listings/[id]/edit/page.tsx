@@ -58,7 +58,7 @@ export default async function EditListingPage({
         vehicles: listing.listing_vehicles.map((v: { vehicle: VehicleType }) => v.vehicle),
         features: listing.listing_features.map((f: { feature: FeatureType }) => f.feature),
         price_daily: listing.price_daily,
-        price_fortnightly: listing.price_fortnightly,
+        price_weekly: listing.price_weekly,
         price_monthly: listing.price_monthly,
         access_instructions: listing.access_instructions,
         photos,

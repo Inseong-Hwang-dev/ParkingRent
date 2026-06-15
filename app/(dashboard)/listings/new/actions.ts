@@ -16,7 +16,7 @@ export type CreateListingInput = {
   vehicles: VehicleType[]
   features: FeatureType[]
   price_daily: number | null
-  price_fortnightly: number | null
+  price_weekly: number | null
   price_monthly: number | null
   access_instructions: string | null
 }
@@ -45,7 +45,7 @@ export async function createListing(
       lng: input.lng,
       space_type: input.space_type,
       price_daily: input.price_daily,
-      price_fortnightly: input.price_fortnightly,
+      price_weekly: input.price_weekly,
       price_monthly: input.price_monthly,
       access_instructions: input.access_instructions || null,
     })

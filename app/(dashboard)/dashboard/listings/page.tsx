@@ -18,7 +18,7 @@ type MyListing = {
   is_active: boolean
   is_sold_out: boolean
   price_daily: number | null
-  price_fortnightly: number | null
+  price_weekly: number | null
   price_monthly: number | null
   listing_photos: { url: string; sort_order: number }[]
 }
@@ -35,8 +35,8 @@ function formatPrice(listing: MyListing): string | null {
   if (listing.price_monthly) {
     return `$${listing.price_monthly.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/mo`
   }
-  if (listing.price_fortnightly) {
-    return `$${listing.price_fortnightly.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/fn`
+  if (listing.price_weekly) {
+    return `$${listing.price_weekly.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/wk`
   }
   if (listing.price_daily) {
     return `$${listing.price_daily.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/day`
@@ -67,7 +67,7 @@ export default async function MyListingsPage() {
       is_active,
       is_sold_out,
       price_daily,
-      price_fortnightly,
+      price_weekly,
       price_monthly,
       listing_photos ( url, sort_order )
       `
